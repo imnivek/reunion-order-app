@@ -52,6 +52,23 @@ app.get('/', (req, res) => {
   res.send('同學會訂餐後端已啟動！');
 });
 
+// --- 新增的路由：讀取所有訂單 ---
+app.get('/orders', async (req, res) => {
+  try {
+    // 查詢資料庫，只選取需要的欄位，並依照建立時間倒序 (最新的在最上面)
+    const result = await pool.query(
+      'SELECT user_name, main_course, total, timestamp FROM orders ORDER BY created_at DESC'
+    );
+    
+    // 將查詢結果以 JSON 格式回傳
+    res.status(200).json(result.rows);
+
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ result: "error", error: error.message });
+  }
+});
+
 // 提交訂單的 API 路由
 app.post('/submit', async (req, res) => {
   try {
