@@ -69,6 +69,15 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #C06C59;
         }
+        
+        /* 簡易的 pulse 動畫 */
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .animate-pulse {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
     </style>
 </head>
 <body class="text-gray-700">
@@ -136,8 +145,10 @@
                 </div>
             </div>
 
-            <!-- Sidebar: Order Summary -->
+            <!-- Sidebar: Order Summary & Live Feed -->
             <div class="lg:w-1/3 mt-8 lg:mt-0">
+                
+                <!-- 您的訂單總覽 (Sticky) -->
                 <div class="sticky top-8 bg-white rounded-xl shadow-lg p-6">
                     <h2 class="text-2xl font-bold mb-4 text-center border-b pb-3 text-[#8D6B5C]">您的訂單總覽</h2>
                     <div id="summary-user" class="text-center mb-4"></div>
@@ -157,12 +168,27 @@
                         ✓ 感謝您！訂單已記錄。
                     </div>
                 </div>
+                
+                <!-- 新增：即時點餐動態 -->
+                <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-center border-b pb-3 text-[#8D6B5C]">
+                        <span class="inline-block animate-pulse mr-2 text-red-500">🔴</span>
+                        即時點餐動態
+                    </h2>
+                    <div id="live-orders-list" class="space-y-3 h-96 overflow-y-auto pr-2">
+                        <p id="live-orders-loading" class="text-center text-gray-400">正在載入已點餐名單...</p>
+                        <!-- Live orders will be injected here -->
+                    </div>
+                </div>
+                
             </div>
         </div>
     </div>
 
     <script>
-        const BACKEND_API_URL = 'https://your-backend-service-name.zeabur.app/submit'; // <--- ★★★ 請替換成您在 Zeabur 部署後的 "backend" 服務網址 + /submit ★★★
+        // --- ★★★ 關鍵點 ★★★ ---
+        // 我已經幫您把您提供的網址填好了！
+        const BACKEND_BASE_URL = 'https://orderapp.zeabur.app';
 
         const menuData = {
             categories: ["經典早午餐", "法式吐司班尼迪克蛋", "美式歐姆蛋捲", "西班牙烘蛋", "漢堡", "三明治", "義大利麵", "燉飯", "咖哩蛋包飯", "排餐", "沙拉", "墨西哥捲餅/卡莎蒂亞", "Pizza", "兒童餐", "開胃菜/點心"],
@@ -198,7 +224,7 @@
                     { name: "巴伐利亞豬腳", price: 500 }, { name: "好遞主廚牛排", price: 500 }, { name: "香煎大扁鱈", price: 400 }
                 ],
                 "沙拉": [
-                    { name: "好遞主廚沙拉", price: 300 }, { name: "溫蔬菜翠樂沙拉", price: 280 }, { name: "經典凱薩沙拉", price: 240 }
+                    { name: "好遞主廚沙拉", price: 300 }, { name: "溫蔬菜翠樂沙ла", price: 280 }, { name: "經典凱薩沙拉", price: 240 }
                 ],
                 "墨西哥捲餅/卡莎蒂亞": [
                     { name: "[捲餅] 酪梨生菜", price: 200 }, { name: "[捲餅] 香料雞肉", price: 200 }, { name: "[捲餅] 費城牛肉", price: 240 }, { name: "[卡莎] 蔬菜", price: 200 }, { name: "[卡莎] 雞", price: 220 }, { name: "[卡莎] 牛", price: 220 }
@@ -236,6 +262,46 @@
             dessert: null,
             totalPrice: 0
         };
+
+        // --- 新增的函式：抓取並顯示即時訂單 ---
+        async function fetchLiveOrders() {
+            const liveOrdersList = document.getElementById('live-orders-list');
+            const loadingText = document.getElementById('live-orders-loading');
+
+            // 檢查 URL 是否已設定
+            if (BACKEND_BASE_URL.includes('your-backend-service-name')) {
+                if (loadingText) loadingText.textContent = '主辦人尚未設定後端網址';
+                return;
+            }
+
+            try {
+                // 使用基礎網址 + /orders
+                const response = await fetch(`${BACKEND_BASE_URL}/orders`);
+                if (!response.ok) throw new Error('Failed to fetch orders');
+                
+                const orders = await response.json();
+                
+                if (orders.length === 0) {
+                    liveOrdersList.innerHTML = '<p class="text-center text-gray-400">目前尚無訂單，快來搶頭香！</p>';
+                    return;
+                }
+
+                // 將訂單資料轉譯為 HTML
+                liveOrdersList.innerHTML = orders.map(order => `
+                    <div class="summary-item flex justify-between items-center py-2">
+                        <div>
+                            <p class="font-bold">${order.user_name}</p>
+                            <p class="text-sm text-gray-600">${order.main_course}</p>
+                        </div>
+                        <span class="font-medium text-[#8D6B5C]">NT$ ${order.total}</span>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error fetching live orders:', error);
+                liveOrdersList.innerHTML = '<p class="text-center text-red-500">無法載入訂單...請稍後再試</p>';
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             const categoryTabs = document.getElementById('category-tabs');
@@ -428,11 +494,6 @@
                     return;
                  }
                  
-                 if (BACKEND_API_URL.includes('your-backend-service-name')) {
-                    summary.innerHTML = '<p id="error-message" class="text-center text-red-500 font-bold">錯誤：主辦人尚未設定後端網址！</p>';
-                    return;
-                 }
-
                  // 禁用按鈕並顯示讀取狀態
                  submitButton.disabled = true;
                  submitButton.textContent = '訂單送出中...';
@@ -451,7 +512,8 @@
                     total: currentOrder.totalPrice
                  };
 
-                 fetch(BACKEND_API_URL, {
+                 // 使用基礎網址 + /submit
+                 fetch(`${BACKEND_BASE_URL}/submit`, {
                     method: 'POST',
                     mode: 'cors',
                     cache: 'no-cache',
@@ -466,7 +528,8 @@
                     if(data.result === 'success') {
                         document.getElementById('confirmation-message').classList.remove('hidden');
                         submitButton.textContent = '訂單已送出';
-                        // 成功後保持按鈕禁用
+                        // 成功送出訂單後，立刻重新抓取一次即時列表
+                        fetchLiveOrders(); 
                     } else {
                         throw new Error(data.error || '提交失敗');
                     }
@@ -486,7 +549,11 @@
             renderSelectOptions(drinkSelect, menuData.drinks);
             renderSelectOptions(dessertSelect, menuData.desserts);
             updateSummary();
+            
+            // 頁面載入時，抓取一次即時訂單
+            fetchLiveOrders();
         });
     </script>
 </body>
 </html>
+
