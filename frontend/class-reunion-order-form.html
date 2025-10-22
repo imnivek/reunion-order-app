@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025同學會 互動式點餐單</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals & Soft Terracotta -->
+    <!-- Application Structure Plan: A multi-step, wizard-like SPA. Step 1: Name input. Step 2: Main course selection using a tabbed interface for categories to reduce cognitive load. Step 3: Combo, drinks, desserts, and upgrades. Step 4: A final order summary with real-time total calculation. This guided structure is more intuitive and manageable than a single long form, handling complex menu dependencies dynamically. -->
+    <!-- Visualization & Content Choices: Menu categories are organized into interactive tabs (HTML/JS) to prevent user overload. Individual menu items are displayed as selectable cards in a responsive grid (HTML/Tailwind), which is more visually engaging than a simple list. The order summary and total price are dynamically updated text elements (JS) providing immediate feedback. All complex pricing and combo eligibility rules are handled by JS logic, simplifying the user experience. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #FDFBF8; /* Warm neutral background */
+        }
+        .tab-active {
+            background-color: #D57A66; /* Soft Terracotta */
+            color: white;
+            border-color: #D57A66;
+        }
+        .tab-inactive {
+            background-color: #F3E9E0; /* Lighter warm neutral */
+            color: #8D6B5C; /* Muted brown */
+            border-color: #E2D4C9;
+        }
+        .item-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .item-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.08);
+        }
+        .item-card.selected {
+            border-color: #D57A66;
+            box-shadow: 0 4px 10px rgba(213, 122, 102, 0.3);
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background-color: #D57A66;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #C06C59;
+        }
+        .btn-secondary {
+            background-color: #F3E9E0;
+            color: #8D6B5C;
+        }
+         .btn-secondary:hover {
+            background-color: #E2D4C9;
+        }
+        .summary-item {
+            border-bottom: 1px dashed #E2D4C9;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F3E9E0;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D57A66;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #C06C59;
+        }
+    </style>
+</head>
+<body class="text-gray-700">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-[#8D6B5C]">2025同學會 線上點餐</h1>
+            <p class="mt-2 text-gray-500">請填寫您的訂單，期待與您相見！</p>
+        </header>
+
+        <div class="lg:flex lg:space-x-8">
+            <!-- Main Content -->
+            <div class="lg:w-2/3">
+
+                <!-- Step 1: User Info -->
+                <div id="step-1" class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold mb-4 text-[#8D6B5C]">1. 請告訴我們您是誰？</h2>
+                    <label for="userName" class="block text-sm font-medium text-gray-600 mb-2">您在報名時使用的全名*</label>
+                    <input type="text" id="userName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D57A66] focus:border-transparent" placeholder="請輸入您的大名">
+                </div>
+
+                <!-- Step 2: Main Course -->
+                <div id="step-2" class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold mb-4 text-[#8D6B5C]">2. 選擇您的主餐</h2>
+                    <p class="text-sm text-gray-500 mb-4">提醒：單點一份價值高於 NT$150 元餐點，才可享套餐加購優惠。</p>
+                    
+                    <nav id="category-tabs" class="flex flex-wrap gap-2 mb-6">
+                        <!-- Tabs will be generated here -->
+                    </nav>
+
+                    <div id="menu-items" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[50vh] overflow-y-auto pr-2">
+                        <!-- Menu items will be generated here -->
+                    </div>
+                </div>
+
+                <!-- Step 3: Add-ons -->
+                <div id="step-3" class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-[#8D6B5C]">3. 套餐、飲料與其他加點</h2>
+                    
+                    <!-- Combos -->
+                    <div id="combo-section" class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 border-l-4 border-[#D57A66] pl-3">升級套餐</h3>
+                        <div id="combo-options" class="space-y-2">
+                             <!-- Combo options will be generated here -->
+                        </div>
+                         <p id="combo-alert" class="text-sm text-red-500 mt-2 hidden">您的主餐金額不足 NT$150，無法升級套餐。</p>
+                    </div>
+
+                    <!-- Drinks -->
+                    <div class="mb-6">
+                         <h3 class="text-lg font-semibold mb-3 border-l-4 border-[#D57A66] pl-3">選擇飲料</h3>
+                         <select id="drink-select" class="w-full p-3 border border-gray-300 rounded-lg">
+                            <!-- Drink options will be generated here -->
+                         </select>
+                    </div>
+
+                    <!-- Desserts -->
+                     <div>
+                         <h3 class="text-lg font-semibold mb-3 border-l-4 border-[#D57A66] pl-3">選擇甜點</h3>
+                         <select id="dessert-select" class="w-full p-3 border border-gray-300 rounded-lg">
+                             <!-- Dessert options will be generated here -->
+                         </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar: Order Summary -->
+            <div class="lg:w-1/3 mt-8 lg:mt-0">
+                <div class="sticky top-8 bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-center border-b pb-3 text-[#8D6B5C]">您的訂單總覽</h2>
+                    <div id="summary-user" class="text-center mb-4"></div>
+                    <div id="summary-items" class="space-y-2 mb-4 h-64 overflow-y-auto pr-2">
+                       <p class="text-center text-gray-400">您的餐點將顯示於此處</p>
+                    </div>
+                    <div class="border-t pt-4">
+                        <div class="flex justify-between items-center text-2xl font-bold text-[#8D6B5C]">
+                            <span>總計：</span>
+                            <span id="total-price">NT$ 0</span>
+                        </div>
+                    </div>
+                    <button id="submit-order" class="w-full mt-6 py-3 rounded-lg font-bold text-lg btn-primary transition-transform transform hover:scale-105">
+                        確認送出訂單
+                    </button>
+                    <div id="confirmation-message" class="text-center mt-4 text-green-600 font-bold hidden">
+                        ✓ 感謝您！訂單已記錄。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_API_URL = 'https://your-backend-service-name.zeabur.app/submit'; // <--- ★★★ 請替換成您在 Zeabur 部署後的 "backend" 服務網址 + /submit ★★★
+
+        const menuData = {
+            categories: ["經典早午餐", "法式吐司班尼迪克蛋", "美式歐姆蛋捲", "西班牙烘蛋", "漢堡", "三明治", "義大利麵", "燉飯", "咖哩蛋包飯", "排餐", "沙拉", "墨西哥捲餅/卡莎蒂亞", "Pizza", "兒童餐", "開胃菜/點心"],
+            items: {
+                "經典早午餐": [
+                    { name: "三隻小豬 (火腿/香腸/培根)", price: 260 }, { name: "迷迭香雞腿排", price: 340 }, { name: "里肌豬排", price: 290 }, { name: "骰子牛肉", price: 370 }, { name: "香煎魚排", price: 290 }, { name: "綜合時蔬", price: 260 }
+                ],
+                "法式吐司班尼迪克蛋": [
+                    { name: "番茄菠菜菇菇", price: 260 }, { name: "鐵板牛肉起司", price: 320 }, { name: "燻鮭蘆筍生菜", price: 320 }
+                ],
+                "美式歐姆蛋捲": [
+                    { name: "綜合肉 (培根/火腿/香腸)", price: 280 }, { name: "綜合蔬菜", price: 260 }, { name: "綜合海鮮", price: 330 }, { name: "墨西哥辣味牛肉", price: 300 }
+                ],
+                "西班牙烘蛋": [
+                    { name: "蘑菇菠菜蕃茄", price: 260 }, { name: "洋蔥牛肉馬鈴薯", price: 320 }, { name: "櫛瓜鮮蝦吻仔魚", price: 320 }
+                ],
+                "漢堡": [
+                    { name: "好遞雙拼漢堡", price: 420 }, { name: "經典起司牛肉堡", price: 280 }, { name: "好事花生牛肉堡", price: 300 }, { name: "松露菇菇牛肉堡", price: 320 }, { name: "夏威夷炸蝦牛肉堡", price: 380 }, { name: "水牛城炸雞漢堡", price: 260 }, { name: "塔塔鱈魚排漢堡", price: 240 }
+                ],
+                "三明治": [
+                    { name: "炸豬排總匯三明治", price: 280 }, { name: "香檸青醬雞肉三明治", price: 250 }, { name: "酪梨綜合菇三明治", price: 240 }, { name: "燻鮭魚法式吐司", price: 300 }
+                ],
+                "義大利麵": [
+                    { name: "明太子香煎干貝麵", price: 300 }, { name: "波隆那肉醬麵", price: 250 }, { name: "蛋黃醬培根麵", price: 250 }, { name: "漁夫茄汁海鮮麵", price: 280 }, { name: "清炒辣味時蔬麵", price: 250 }, { name: "墨西哥哥媽辣雞翅尖麵", price: 300 }, { name: "松露牛肝菌菇雞肉麵", price: 300 }
+                ],
+                "燉飯": [
+                    { name: "松露牛肝菌菇燉飯", price: 260 }, { name: "明太子鮭魚燉飯", price: 320 }, { name: "好遞德國海鮮燉飯", price: 340 }, { name: "透抽雞肉青醬燉飯", price: 300 }, { name: "骰子牛菠菜奶油燉飯", price: 340 }
+                ],
+                "咖哩蛋包飯": [
+                    { name: "炸豬排咖哩蛋包飯", price: 280 }, { name: "香煎雞腿排咖哩蛋包飯", price: 300 }, { name: "炒綜合時蔬咖哩蛋包飯", price: 250 }, { name: "炸蝦咖哩蛋包飯", price: 260 }
+                ],
+                "排餐": [
+                    { name: "巴伐利亞豬腳", price: 500 }, { name: "好遞主廚牛排", price: 500 }, { name: "香煎大扁鱈", price: 400 }
+                ],
+                "沙拉": [
+                    { name: "好遞主廚沙拉", price: 300 }, { name: "溫蔬菜翠樂沙拉", price: 280 }, { name: "經典凱薩沙拉", price: 240 }
+                ],
+                "墨西哥捲餅/卡莎蒂亞": [
+                    { name: "[捲餅] 酪梨生菜", price: 200 }, { name: "[捲餅] 香料雞肉", price: 200 }, { name: "[捲餅] 費城牛肉", price: 240 }, { name: "[卡莎] 蔬菜", price: 200 }, { name: "[卡莎] 雞", price: 220 }, { name: "[卡莎] 牛", price: 220 }
+                ],
+                "Pizza": [
+                    { name: "夏威夷 2.0", price: 240 }, { name: "松露菇菇", price: 260 }, { name: "青醬烤雞鮮蝦", price: 280 }
+                ],
+                "兒童餐": [
+                    { name: "兒童餐 - 肉醬通心麵", price: 240 }, { name: "兒童餐 - 起司通心麵", price: 240 }, { name: "兒童餐 - 奶油雞肉菠菜燉飯", price: 240 }, { name: "兒童餐 - 起司牛肉小漢堡", price: 240 }, { name: "兒童餐 - 好遞兒童三明治", price: 240 }, { name: "兒童餐 - 兒童早午餐", price: 240 }
+                ],
+                 "開胃菜/點心": [
+                    { name: "好遞拼盤", price: 420, type: 'addon' }, { name: "摩佐拉拉起司條", price: 120, type: 'addon' }, { name: "香酥鱈魚條", price: 120, type: 'addon' }, { name: "新鮮洋蔥圈", price: 140, type: 'addon' }, { name: "英式炸魚薯條", price: 200, type: 'addon' }, { name: "風味地瓜條", price: 100, type: 'addon' }, { name: "今日濃湯", price: 60, type: 'addon' }
+                ]
+            },
+            combos: [
+                { id: 'no-combo', name: "否 (單點，不加套餐)", price: 0 },
+                { id: 'A', name: "A: 每日濃湯+大蒜麵包+田園沙拉", price: 120 },
+                { id: 'B', name: "B: 任選140元飲品 或 甜點", price: 120 },
+                { id: 'C', name: "C: 套餐A + 套餐B", price: 220 },
+                { id: 'D', name: "D: 套餐A + B + 任選140元甜點", price: 300 }
+            ],
+            drinks: [
+                { name: "不點飲料", price: 0 }, { name: "美式咖啡", price: 100 }, { name: "好遞拿鐵", price: 120 }, { name: "黑糖拿鐵", price: 140 }, { name: "鮮奶油摩卡咖啡", price: 140 }, { name: "西西里冰咖啡", price: 140 }, { name: "好遞鮮奶茶", price: 120 }, { name: "黑糖鮮奶茶", price: 140 }, { name: "焦糖抹茶歐蕾", price: 140 }, { name: "可可歐蕾", price: 140 }, { name: "佛萊明伯爵鮮奶茶", price: 180 }, { name: "奇異果鳳梨蘋果汁", price: 140 }, { name: "紅蘿蔔鳳梨蘋果汁", price: 140 }, { name: "火龍果芭樂柳橙汁", price: 140 }, { name: "精選複方茶", price: 120 }, { name: "好遞新鮮水果茶", price: 140 }, { name: "酪梨香蕉", price: 140 }, { name: "綜合野莓", price: 140 }, { name: "火龍果鳳梨", price: 140 }, { name: "香草奶昔", price: 140 }, { name: "Oreo奶昔", price: 160 }, { name: "芝麻抹茶奶昔", price: 180 }, { name: "經典莫希托 (無酒精)", price: 140 }, { name: "經典莫希托 (含酒精)", price: 200 }
+            ],
+            desserts: [
+                 { name: "不點甜點", price: 0 }, { name: "綜合水果法式吐司", price: 220 }, { name: "焦糖堅果花生醬煎餅", price: 220 }, { name: "布朗尼冰淇淋", price: 180 }, { name: "伯爵戚風黑芝麻奶油", price: 140 }, { name: "好遞提拉米蘇", price: 140 }
+            ]
+        };
+
+        let currentOrder = {
+            user: '',
+            mainCourse: null,
+            combo: null,
+            drink: null,
+            dessert: null,
+            totalPrice: 0
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const categoryTabs = document.getElementById('category-tabs');
+            const menuItemsContainer = document.getElementById('menu-items');
+            const comboOptionsContainer = document.getElementById('combo-options');
+            const drinkSelect = document.getElementById('drink-select');
+            const dessertSelect = document.getElementById('dessert-select');
+            const userNameInput = document.getElementById('userName');
+
+            function renderTabs() {
+                categoryTabs.innerHTML = menuData.categories.map((cat, index) => `
+                    <button class="tab-button py-2 px-4 rounded-full font-semibold border-2 ${index === 0 ? 'tab-active' : 'tab-inactive'}" data-category="${cat}">
+                        ${cat}
+                    </button>
+                `).join('');
+            }
+
+            function renderMenuItems(category) {
+                const items = menuData.items[category] || [];
+                menuItemsContainer.innerHTML = items.map(item => `
+                    <div class="item-card bg-gray-50 rounded-lg p-4 cursor-pointer border-2 border-transparent" data-name="${item.name}" data-price="${item.price}" data-category="${category}">
+                        <div class="flex justify-between items-start">
+                            <h4 class="font-bold text-gray-800">${item.name}</h4>
+                            <span class="font-semibold text-[#8D6B5C]">NT$ ${item.price}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function renderCombos() {
+                comboOptionsContainer.innerHTML = menuData.combos.map(combo => `
+                    <label class="flex items-center p-3 rounded-lg hover:bg-gray-50">
+                        <input type="radio" name="combo" class="h-4 w-4 text-[#D57A66] focus:ring-[#D57A66]" value="${combo.id}" ${combo.id === 'no-combo' ? 'checked' : ''}>
+                        <span class="ml-3 text-gray-700">${combo.name} (+NT$ ${combo.price})</span>
+                    </label>
+                `).join('');
+            }
+            
+            function renderSelectOptions(selectElement, options) {
+                selectElement.innerHTML = options.map(opt => `<option value="${opt.name}" data-price="${opt.price}">${opt.name} - NT$ ${opt.price}</option>`).join('');
+            }
+
+            function updateSummary() {
+                const summaryItems = document.getElementById('summary-items');
+                const totalPriceEl = document.getElementById('total-price');
+                const summaryUser = document.getElementById('summary-user');
+                let total = 0;
+                let summaryHTML = '';
+
+                summaryUser.innerHTML = `<p class="font-bold text-lg">${currentOrder.user || '訂餐人'}</p>`;
+                
+                if (currentOrder.mainCourse) {
+                    summaryHTML += `<div class="summary-item flex justify-between py-2"><span class="flex-1">${currentOrder.mainCourse.name}</span><span class="font-medium">NT$ ${currentOrder.mainCourse.price}</span></div>`;
+                    total += currentOrder.mainCourse.price;
+                }
+
+                if (currentOrder.combo && currentOrder.combo.id !== 'no-combo') {
+                    summaryHTML += `<div class="summary-item flex justify-between py-2"><span class="flex-1">${currentOrder.combo.name}</span><span class="font-medium">+NT$ ${currentOrder.combo.price}</span></div>`;
+                    total += currentOrder.combo.price;
+                }
+
+                let drinkPrice = 0;
+                if (currentOrder.drink && currentOrder.drink.name !== '不點飲料') {
+                    drinkPrice = currentOrder.drink.price;
+                    // 套餐 B, C, D 都有含 $140 飲料
+                    if ((currentOrder.combo?.id === 'B' || currentOrder.combo?.id === 'C' || currentOrder.combo?.id === 'D') && drinkPrice <= 140) {
+                       drinkPrice = 0; // Covered by combo
+                    }
+                    if (drinkPrice > 0){
+                        summaryHTML += `<div class="summary-item flex justify-between py-2"><span class="flex-1">飲品: ${currentOrder.drink.name}</span><span class="font-medium">+NT$ ${drinkPrice}</span></div>`;
+                        total += drinkPrice;
+                    } else {
+                         summaryHTML += `<div class="summary-item flex justify-between py-2"><span class="flex-1">飲品: ${currentOrder.drink.name}</span><span class="font-medium text-green-600">套餐內含</span></div>`;
+                    }
+                }
+
+                let dessertPrice = 0;
+                if (currentOrder.dessert && currentOrder.dessert.name !== '不點甜點') {
+                    dessertPrice = currentOrder.dessert.price;
+                     // 套餐 D 含甜點; 套餐 B 飲料甜點二選一
+                     if ((currentOrder.combo?.id === 'D' || (currentOrder.combo?.id === 'B' && (!currentOrder.drink || currentOrder.drink.name === '不點飲料'))) && dessertPrice <= 140) {
+                        dessertPrice = 0; // Covered by combo
+                    }
+                    if (dessertPrice > 0){
+                         summaryHTML += `<div class="summary-item flex justify-between py-2"><span class="flex-1">甜點: ${currentOrder.dessert.name}</span><span class="font-medium">+NT$ ${dessertPrice}</span></div>`;
+                         total += dessertPrice;
+                    } else {
+                         summaryHTML += `<div class="summary-item flex justify-between py-2"><span class="flex-1">甜點: ${currentOrder.dessert.name}</span><span class="font-medium text-green-600">套餐內含</span></div>`;
+                    }
+                }
+                
+                summaryItems.innerHTML = summaryHTML || `<p class="text-center text-gray-400">您的餐點將顯示於此處</p>`;
+                totalPriceEl.textContent = `NT$ ${total}`;
+                currentOrder.totalPrice = total; // 儲存總金額
+            }
+
+            function checkComboEligibility() {
+                const comboAlert = document.getElementById('combo-alert');
+                const comboRadios = document.querySelectorAll('input[name="combo"]');
+                const eligible = currentOrder.mainCourse && currentOrder.mainCourse.price >= 150;
+
+                comboAlert.classList.toggle('hidden', eligible);
+                comboRadios.forEach(radio => {
+                    if (radio.value !== 'no-combo') {
+                         radio.disabled = !eligible;
+                    }
+                });
+                
+                if (!eligible && currentOrder.combo?.id !== 'no-combo') {
+                    document.querySelector('input[name="combo"][value="no-combo"]').checked = true;
+                    currentOrder.combo = menuData.combos.find(c => c.id === 'no-combo');
+                }
+            }
+            
+            // Event Listeners
+            categoryTabs.addEventListener('click', e => {
+                if (e.target.tagName === 'BUTTON') {
+                    document.querySelectorAll('.tab-button').forEach(btn => {
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('tab-inactive');
+                    });
+                    e.target.classList.add('tab-active');
+                    e.target.classList.remove('tab-inactive');
+                    renderMenuItems(e.target.dataset.category);
+                }
+            });
+
+            menuItemsContainer.addEventListener('click', e => {
+                const card = e.target.closest('.item-card');
+                if (card) {
+                    document.querySelectorAll('.item-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+
+                    currentOrder.mainCourse = {
+                        name: card.dataset.name,
+                        price: parseInt(card.dataset.price)
+                    };
+                    checkComboEligibility();
+                    updateSummary();
+                }
+            });
+            
+            comboOptionsContainer.addEventListener('change', e => {
+                const comboId = e.target.value;
+                currentOrder.combo = menuData.combos.find(c => c.id === comboId);
+                updateSummary();
+            });
+
+            drinkSelect.addEventListener('change', e => {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                currentOrder.drink = {
+                    name: selectedOption.value,
+                    price: parseInt(selectedOption.dataset.price)
+                }
+                updateSummary();
+            });
+
+            dessertSelect.addEventListener('change', e => {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                currentOrder.dessert = {
+                    name: selectedOption.value,
+                    price: parseInt(selectedOption.dataset.price)
+                }
+                updateSummary();
+            });
+
+            userNameInput.addEventListener('input', e => {
+                currentOrder.user = e.target.value;
+                updateSummary();
+            });
+            
+            document.getElementById('submit-order').addEventListener('click', () => {
+                 const submitButton = document.getElementById('submit-order');
+                 const summary = document.getElementById('summary-items');
+
+                 // 移除舊的錯誤訊息
+                 const oldError = document.getElementById('error-message');
+                 if (oldError) oldError.remove();
+
+                 if (!currentOrder.user) {
+                     userNameInput.focus();
+                     userNameInput.classList.add('border-red-500', 'ring-red-500');
+                     return;
+                 } else {
+                     userNameInput.classList.remove('border-red-500', 'ring-red-500');
+                 }
+
+                 if (!currentOrder.mainCourse) {
+                    summary.innerHTML = '<p id="error-message" class="text-center text-red-500 font-bold">請至少選擇一樣主餐！</p>';
+                    return;
+                 }
+                 
+                 if (BACKEND_API_URL.includes('your-backend-service-name')) {
+                    summary.innerHTML = '<p id="error-message" class="text-center text-red-500 font-bold">錯誤：主辦人尚未設定後端網址！</p>';
+                    return;
+                 }
+
+                 // 禁用按鈕並顯示讀取狀態
+                 submitButton.disabled = true;
+                 submitButton.textContent = '訂單送出中...';
+
+                 const orderData = {
+                    timestamp: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+                    user: currentOrder.user,
+                    mainCourse: currentOrder.mainCourse?.name || '無',
+                    mainCoursePrice: currentOrder.mainCourse?.price || 0,
+                    combo: currentOrder.combo?.name || '無',
+                    comboPrice: currentOrder.combo?.price || 0,
+                    drink: currentOrder.drink?.name || '無',
+                    drinkPrice: (currentOrder.drink && currentOrder.drink.name !== '不點飲料') ? currentOrder.drink.price : 0,
+                    dessert: currentOrder.dessert?.name || '無',
+                    dessertPrice: (currentOrder.dessert && currentOrder.dessert.name !== '不點甜點') ? currentOrder.dessert.price : 0,
+                    total: currentOrder.totalPrice
+                 };
+
+                 fetch(BACKEND_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData),
+                    redirect: 'follow'
+                 })
+                 .then(response => response.json())
+                 .then(data => {
+                    if(data.result === 'success') {
+                        document.getElementById('confirmation-message').classList.remove('hidden');
+                        submitButton.textContent = '訂單已送出';
+                        // 成功後保持按鈕禁用
+                    } else {
+                        throw new Error(data.error || '提交失敗');
+                    }
+                 })
+                 .catch(error => {
+                    console.error('Error:', error);
+                    summary.innerHTML += '<p id="error-message" class="text-center text-red-500 font-bold">送出失敗，請稍後再試或聯繫主辦人。</p>';
+                    submitButton.disabled = false;
+                    submitButton.textContent = '重新送出訂單';
+                 });
+            });
+
+            // Initial Render
+            renderTabs();
+            renderMenuItems(menuData.categories[0]);
+            renderCombos();
+            renderSelectOptions(drinkSelect, menuData.drinks);
+            renderSelectOptions(dessertSelect, menuData.desserts);
+            updateSummary();
+        });
+    </script>
+</body>
+</html>
